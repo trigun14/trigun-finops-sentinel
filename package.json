@@ -1,0 +1,37 @@
+{
+  "name": "aws-cost-scout",
+  "version": "1.0.0",
+  "description": "ScoutSuite-style AWS Cost Audit & Infrastructure Optimization Scanner with Standalone HTML Report Generator",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "dependencies": {
+    "@aws-sdk/client-cloudwatch": "^3.700.0",
+    "@aws-sdk/client-cloudwatch-logs": "^3.700.0",
+    "@aws-sdk/client-cost-explorer": "^3.700.0",
+    "@aws-sdk/client-ec2": "^3.700.0",
+    "@aws-sdk/client-ecr": "^3.700.0",
+    "@aws-sdk/client-elastic-load-balancing-v2": "^3.1136.0",
+    "@aws-sdk/client-rds": "^3.700.0",
+    "@aws-sdk/client-s3": "^3.700.0",
+    "@aws-sdk/client-sts": "^3.700.0",
+    "cors": "^2.8.5",
+    "express": "^4.21.2"
+  },
+  "keywords": [
+    "aws",
+    "cost-optimization",
+    "scoutsuite",
+    "finops",
+    "audit",
+    "ec2",
+    "rds",
+    "ecr",
+    "ebs",
+    "s3"
+  ],
+  "author": "Antigravity FinOps Suite",
+  "license": "MIT"
+}

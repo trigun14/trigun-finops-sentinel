@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Trigun FinOps Sentinel - Cloud Cost & Infrastructure Audit</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <!-- TOP HEADER -->
+  <header>
+    <div class="brand">
+      <div class="brand-icon">T</div>
+      <div class="brand-title">
+        <h1>Trigun FinOps Sentinel</h1>
+        <p>AWS Cloud Cost & Infrastructure Audit Suite</p>
+      </div>
+    </div>
+    <div class="meta-badges" id="headerMetaBadges">
+      <span class="badge badge-primary">Engine v3.0.0</span>
+      <span class="badge badge-success">30-Day Metric Scanner</span>
+    </div>
+  </header>
+
+  <!-- SCREEN 1: CREDENTIALS & SCAN START FORM -->
+  <div id="credentialsScreen" class="screen-wrapper">
+    <div class="credentials-card">
+      <div class="card-header-icon">🛡️</div>
+      <h2>Connect AWS Account for FinOps Audit</h2>
+      <p>Enter your <strong>Read-Only AWS IAM Credentials</strong> to execute a 30-day infrastructure & metric cost audit.</p>
+
+      <form id="awsAuthForm" onsubmit="handleStartScan(event)">
+        
+        <div class="form-group">
+          <label for="accessKeyId">AWS Access Key ID <span class="required">*</span></label>
+          <input type="text" id="accessKeyId" placeholder="AKIAIOSFODNN7EXAMPLE" class="form-control" autocomplete="off">
+          <small class="help-text">Mandatory read-only Access Key ID.</small>
+        </div>
+
+        <div class="form-group">
+          <label for="secretAccessKey">AWS Secret Access Key <span class="required">*</span></label>
+          <input type="password" id="secretAccessKey" placeholder="wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY" class="form-control" autocomplete="off">
+          <small class="help-text">Mandatory read-only Secret Access Key.</small>
+        </div>
+
+        <div class="form-group">
+          <label for="sessionToken">AWS Session Token (Optional)</label>
+          <input type="password" id="sessionToken" placeholder="IQoJb3JpZ2luX2VjEEXAMPLE..." class="form-control" autocomplete="off">
+          <small class="help-text">Required if using temporary STS keys or SSO role credentials.</small>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group half">
+            <label for="region">Primary AWS Region <span class="required">*</span></label>
+            <select id="region" class="form-control">
+              <option value="ap-south-1" selected>Asia Pacific (Mumbai) - ap-south-1</option>
+              <option value="us-east-1">US East (N. Virginia) - us-east-1</option>
+              <option value="us-west-2">US West (Oregon) - us-west-2</option>
+              <option value="eu-west-1">Europe (Ireland) - eu-west-1</option>
+              <option value="ap-southeast-1">Asia Pacific (Singapore) - ap-southeast-1</option>
+            </select>
+          </div>
+
+          <div class="form-group half">
+            <label for="days">Monitoring Window <span class="required">*</span></label>
+            <select id="days" class="form-control">
+              <option value="30" selected>1 Month (30 Days Monitoring)</option>
+              <option value="14">2 Weeks (14 Days)</option>
+              <option value="60">2 Months (60 Days)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="mock-mode-toggle">
+          <label class="switch">
+            <input type="checkbox" id="useMockMode" checked>
+            <span class="slider round"></span>
+          </label>
+          <div class="toggle-text">
+            <strong>Use Pre-Loaded Demo Account Data</strong>
+            <p>Scan instantly with realistic enterprise infrastructure metrics without providing live credentials.</p>
+          </div>
+        </div>
+
+        <button type="submit" class="btn-primary-glow">
+          <span>🚀 Start AWS Audit & Metric Scan</span>
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- SCREEN 2: HOLD TIGHT LOADING SCANNER STATE -->
+  <div id="loadingScreen" class="screen-wrapper" style="display: none;">
+    <div class="loading-card">
+      <div class="spinner-radar"></div>
+      <h2>Hold tight, we are working for you...</h2>
+      <p id="loadingSubtext">Connecting to AWS API endpoints and performing 30-day CloudWatch metric analysis...</p>
+
+      <div class="progress-bar-container">
+        <div id="progressBar" class="progress-bar-fill" style="width: 10%;"></div>
+      </div>
+
+      <div class="terminal-log-box" id="terminalLogs">
+        <div class="log-line text-info">[01/09] Authenticating Read-Only AWS Credentials & Validating STS Identity...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SCREEN 3: SCOUT SUITE INTERACTIVE DASHBOARD -->
+  <div id="dashboardScreen" class="app-container" style="display: none;">
+    
+    <!-- SIDEBAR NAVIGATION -->
+    <aside>
+      <div class="nav-group-title">AUDIT DASHBOARD</div>
+      <a class="nav-item active" id="nav-overview" onclick="switchDashboardTab('overview')">
+        <span>📊 Overview & Savings</span>
+      </a>
+      <a class="nav-item" id="nav-billing" onclick="switchDashboardTab('billing')">
+        <span>💰 Billing & Top 10 Services</span>
+      </a>
+
+      <div class="nav-group-title">SERVICE DISCOVERY</div>
+      <a class="nav-item" id="nav-ecr" onclick="switchDashboardTab('ecr')">
+        <span>📦 ECR Repos & Lifecycle</span>
+        <span class="nav-item-count" id="count-ecr">0</span>
+      </a>
+      <a class="nav-item" id="nav-ec2" onclick="switchDashboardTab('ec2')">
+        <span>🖥️ EC2 Right-Sizing</span>
+        <span class="nav-item-count" id="count-ec2">0</span>
+      </a>
+      <a class="nav-item" id="nav-rds" onclick="switchDashboardTab('rds')">
+        <span>🛢️ Database (RDS) Over-provisioned</span>
+        <span class="nav-item-count" id="count-rds">0</span>
+      </a>
+      <a class="nav-item" id="nav-s3" onclick="switchDashboardTab('s3')">
+        <span>🪣 S3 Top 10 Buckets</span>
+        <span class="nav-item-count" id="count-s3">0</span>
+      </a>
+      <a class="nav-item" id="nav-cloudwatch" onclick="switchDashboardTab('cloudwatch')">
+        <span>🪵 CloudWatch Log Retention</span>
+        <span class="nav-item-count" id="count-cw">0</span>
+      </a>
+
+      <div class="nav-group-title">EBS & LOAD BALANCERS</div>
+      <a class="nav-item" id="nav-ebs-gp3" onclick="switchDashboardTab('ebs-gp3')">
+        <span>⚡ EBS gp2 to gp3 Migration</span>
+        <span class="nav-item-count" id="count-ebs-gp3">0</span>
+      </a>
+      <a class="nav-item" id="nav-ebs-unattached" onclick="switchDashboardTab('ebs-unattached')">
+        <span>🔌 EBS Unattached (> 1 Year)</span>
+        <span class="nav-item-count" id="count-ebs-unattached">0</span>
+      </a>
+      <a class="nav-item" id="nav-alb" onclick="switchDashboardTab('alb')">
+        <span>⚖️ Zero-Request Load Balancers</span>
+        <span class="nav-item-count" id="count-alb">0</span>
+      </a>
+      <a class="nav-item" id="nav-recommendations" onclick="switchDashboardTab('recommendations')">
+        <span>🚀 Graviton & Recommendations</span>
+      </a>
+
+      <div style="margin-top: auto; padding-top: 1rem;">
+        <button class="btn-export-report" onclick="downloadHtmlReport()">
+          📥 Export Trigun FinOps Report
+        </button>
+      </div>
+    </aside>
+
+    <!-- MAIN DASHBOARD CONTENT AREA -->
+    <main>
+      
+      <!-- TAB 1: OVERVIEW -->
+      <div id="tab-overview" class="tab-content active">
+        <div class="metrics-grid">
+          <div class="metric-card">
+            <div class="metric-label">Monthly Account Spend</div>
+            <div class="metric-value" id="overviewSpendVal">$0</div>
+            <div class="metric-sub">Past 30 Days AWS Spend</div>
+          </div>
+          <div class="metric-card savings">
+            <div class="metric-label">Identified Monthly Savings</div>
+            <div class="metric-value" id="overviewSavingsVal" style="color: var(--accent-green);">$0</div>
+            <div class="metric-sub" id="overviewSavingsPct">0% total cost reduction potential</div>
+          </div>
+          <div class="metric-card warning">
+            <div class="metric-label">ECR & Log Expired Repos</div>
+            <div class="metric-value" id="overviewUnprotectedVal" style="color: var(--accent-amber);">0</div>
+            <div class="metric-sub">Missing retention policies</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">Over-provisioned Instances</div>
+            <div class="metric-value" id="overviewOverprovisionedVal" style="color: #818cf8;">0</div>
+            <div class="metric-sub">EC2 & RDS Right-sizing targets</div>
+          </div>
+        </div>
+
+        <div class="charts-row">
+          <div class="chart-card">
+            <h4>Identified Monthly Cost Savings Breakdown ($)</h4>
+            <canvas id="overviewSavingsChart"></canvas>
+          </div>
+          <div class="chart-card">
+            <h4>Top 5 Monthly Spend Categories ($)</h4>
+            <canvas id="overviewSpendChart"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB 2: BILLING & TOP 10 SERVICES -->
+      <div id="tab-billing" class="tab-content">
+        <div class="card-table-wrapper">
+          <div class="table-header">
+            <h3>Top 10 AWS Services by 30-Day Monthly Cost</h3>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>Rank</th>
+                <th>AWS Service Name</th>
+                <th>Monthly Cost ($)</th>
+                <th>% of Account Spend</th>
+                <th>FinOps Action</th>
+              </tr>
+            </thead>
+            <tbody id="billingTableBody"></tbody>
+          </table>
+        </div>
+
+        <div class="metric-card" style="margin-top: 1.5rem;">
+          <div class="metric-label">CloudWatch Billing API Call Metric Audit</div>
+          <div style="font-size: 1.1rem; font-weight: 700; margin: 0.5rem 0;" class="code-span" id="cwApiCallCount">0 Calls</div>
+          <p style="font-size: 0.85rem; color: var(--text-muted);" id="cwApiRecommendation"></p>
+        </div>
+      </div>
+
+      <!-- TAB 3: ECR REPOS -->
+      <div id="tab-ecr" class="tab-content">
+        <div class="metrics-grid">
+          <div class="metric-card">
+            <div class="metric-label">Total ECR Repos</div>
+            <div class="metric-value" id="ecrTotalCount">0</div>
+          </div>
+          <div class="metric-card warning">
+            <div class="metric-label">Missing Lifecycle Policy</div>
+            <div class="metric-value" id="ecrMissingPolicyCount" style="color: var(--accent-amber);">0</div>
+          </div>
+          <div class="metric-card savings">
+            <div class="metric-label">Potential Storage Savings</div>
+            <div class="metric-value" id="ecrSavingsVal" style="color: var(--accent-green);">0 GB</div>
+          </div>
+        </div>
+
+        <div class="card-table-wrapper">
+          <div class="table-header">
+            <h3>ECR Repositories Storage Audit</h3>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>Repository Name</th>
+                <th>Total Images</th>
+                <th>Storage Size</th>
+                <th>Lifecycle Policy</th>
+                <th>Old Images (> 30d)</th>
+                <th>Est. Savings</th>
+                <th>Fix Script</th>
+              </tr>
+            </thead>
+            <tbody id="ecrTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- TAB 4: EC2 RIGHT-SIZING -->
+      <div id="tab-ec2" class="tab-content">
+        <div class="card-table-wrapper">
+          <div class="table-header">
+            <h3>Over-Provisioned EC2 Instances (30-Day Metric Audit)</h3>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>Instance Name / ID</th>
+                <th>Current Type</th>
+                <th>Max CPU (30d)</th>
+                <th>Avg CPU</th>
+                <th>Current Cost</th>
+                <th>Recommended Type</th>
+                <th>Monthly Savings</th>
+              </tr>
+            </thead>
+            <tbody id="ec2TableBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- TAB 5: RDS DATABASES -->
+      <div id="tab-rds" class="tab-content">
+        <div class="card-table-wrapper">
+          <div class="table-header">
+            <h3>Over-Provisioned RDS Database Instances</h3>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>DB Identifier</th>
+                <th>Engine</th>
+                <th>Current Class</th>
+                <th>Max CPU (30d)</th>
+                <th>Avg Conn</th>
+                <th>Recommended Class</th>
+                <th>Monthly Savings</th>
+              </tr>
+            </thead>
+            <tbody id="rdsTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- TAB 6: S3 BUCKETS -->
+      <div id="tab-s3" class="tab-content">
+        <div class="card-table-wrapper">
+          <div class="table-header">
+            <h3>Top 10 S3 Buckets by Size & Purge Recommendations</h3>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>Rank</th>
+                <th>Bucket Name</th>
+                <th>Size (GB)</th>
+                <th>Lifecycle Rule</th>
+                <th>Recommendation</th>
+                <th>Est. Savings</th>
+              </tr>
+            </thead>
+            <tbody id="s3TableBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- TAB 7: CLOUDWATCH LOGS -->
+      <div id="tab-cloudwatch" class="tab-content">
+        <div class="card-table-wrapper">
+          <div class="table-header">
+            <h3>CloudWatch Log Groups Retention Audit</h3>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>Log Group Name</th>
+                <th>Stored Size</th>
+                <th>Retention</th>
+                <th>Monthly Cost</th>
+                <th>Fix CLI</th>
+              </tr>
+            </thead>
+            <tbody id="cwTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- TAB 8: EBS GP2 TO GP3 -->
+      <div id="tab-ebs-gp3" class="tab-content">
+        <div class="card-table-wrapper">
+          <div class="table-header">
+            <h3>EBS gp2 to gp3 Migration Opportunities</h3>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>Volume ID / Name</th>
+                <th>Size (GB)</th>
+                <th>Attached Instance</th>
+                <th>gp2 Cost</th>
+                <th>gp3 Cost</th>
+                <th>Monthly Savings</th>
+                <th>Migrate CLI</th>
+              </tr>
+            </thead>
+            <tbody id="ebsGp3TableBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- TAB 9: EBS UNATTACHED -->
+      <div id="tab-ebs-unattached" class="tab-content">
+        <div class="card-table-wrapper">
+          <div class="table-header">
+            <h3>Unattached & Idle EBS Volumes (> 1 Year / Unused)</h3>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>Volume ID / Name</th>
+                <th>Size</th>
+                <th>Status</th>
+                <th>Created Date</th>
+                <th>Wasted Cost</th>
+                <th>Cleanup Script</th>
+              </tr>
+            </thead>
+            <tbody id="ebsUnattachedTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- TAB 10: IDLE LOAD BALANCERS -->
+      <div id="tab-alb" class="tab-content">
+        <div class="card-table-wrapper">
+          <div class="table-header">
+            <h3>Idle Application & Network Load Balancers (Zero Requests over 30 Days)</h3>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>Load Balancer Name / ARN</th>
+                <th>Type</th>
+                <th>Scheme</th>
+                <th>Created Date</th>
+                <th>30d Requests</th>
+                <th>Wasted Cost</th>
+                <th>Cleanup Script</th>
+              </tr>
+            </thead>
+            <tbody id="albTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- TAB 11: RECOMMENDATIONS -->
+      <div id="tab-recommendations" class="tab-content">
+        <div class="card-table-wrapper">
+          <div class="table-header">
+            <h3>AWS Graviton, Dev Scheduler & FinOps Architecture Recommendations</h3>
+          </div>
+          <div style="padding: 1.25rem;" id="recommendationsContent"></div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <!-- CLI SCRIPT MODAL -->
+  <div id="cliModal" class="modal-overlay">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>AWS CLI Remediation Command</h3>
+        <button class="modal-close" onclick="closeCliModal()">✕</button>
+      </div>
+      <p style="font-size: 0.85rem; color: var(--text-muted);">Copy and run this command in your terminal with appropriate AWS IAM permissions:</p>
+      <div id="cliModalText" class="cli-box"></div>
+      <button class="btn-primary-glow" style="width: 100%;" onclick="copyCliText()">Copy to Clipboard</button>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

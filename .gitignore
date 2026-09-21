@@ -1,0 +1,7 @@
+node_modules/
+.DS_Store
+*.log
+*.env
+scoutsuite_aws_cost_audit.html
+trigun_finops_audit_report.html
+sample_scoutsuite_report.html
